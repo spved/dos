@@ -9,8 +9,8 @@ defmodule VampireNumber do
 
        def await(pid), do: GenServer.call(pid, :get)
 
-       def handle_cast({:check,value1, value2},state) do
-           ref = process(value1, value2)
+       def handle_cast({:check, list},state) do
+           ref = process(list)
            {:noreply, [ref| state]}
        end
 	
@@ -20,12 +20,13 @@ defmodule VampireNumber do
        def init(queue) do
         {:ok, queue}
        end
-#function to check flangs
+
+	#function to check flangs
        def check_flangs(list,current_number,table) do
           num_length = length(list)/2
           [p|q] = Enum.chunk_every(list, Kernel.trunc(num_length))
           first = Integer.undigits(p)
- second = Integer.undigits(List.flatten(q))
+	  second = Integer.undigits(List.flatten(q))
                
           if current_number == first * second do
              n1  = Integer.undigits(List.flatten(q))
@@ -37,7 +38,7 @@ defmodule VampireNumber do
              bucket = bucket |> Kernel.<>(" ")
              :ets.insert(table,{current_number,bucket})
           end
-end
+	end
 
 #function to check all possible pairs
 #TO DO: can use Enum.each instead
@@ -73,17 +74,22 @@ def parse_list([],_,_), do: nil
           end
         end
 
-        def start(num1, num2) do
-           {:ok,pid} = VampireNumber.start_link()
-           GenServer.cast(pid,{:check,num1, num2})
+        def process(list) do
+                Enum.each(list, &VampireNumber.check/1)
+        end
+ 
+	def process_bunch(list) do
+	   {:ok,pid} = VampireNumber.start_link()
+           GenServer.cast(pid,{:check,list})
            VampireNumber.await(pid)
-
 	end
 
-        def process(value1, value2) do
-                Enum.each(value1..value2, &VampireNumber.check/1)
-        end
-        
+        def start(num1, num2) do
+	   bunch_size=1000
+	   bunch = Enum.chunk_every(num1..num2, bunch_size)
+	   Enum.each(bunch, &process_bunch/1)
+	end
+       
 end
 
 #IO.puts("start")
