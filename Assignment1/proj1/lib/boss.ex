@@ -1,4 +1,4 @@
-defmodule Proj1.GenericServer do
+defmodule Proj1.Boss do
   use GenServer
   #      def handle_call({:check,value},_from,state) do
   #          ref = check(value)
@@ -10,13 +10,10 @@ defmodule Proj1.GenericServer do
   @timeout 100_000_000
   def await(pid), do: GenServer.call(pid, :get, @timeout)
 
-  def handle_cast({:check, list}, state) do
-    # {:ok, pid} = DynamicSupervisor.start_child(Proj1.VampireNumberSupervisor, Proj1.VampireNumber)
-    # ref = Process.monitor(pid)
-    # refs = Map.put(refs, ref, name)
-    # names = Map.put(names, name, pid)
-    ref = Proj1.VampireNumber.process(list)
-    {:noreply, [ref | state]}
+  def handle_cast({:boss, list}, state) do
+    IO.puts("I am the Boss")
+    ref = Proj1.VampireNumber.start(list)
+    {:reply, [ref| state]}
   end
 
   def start_link() do

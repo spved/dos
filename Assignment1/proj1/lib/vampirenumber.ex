@@ -1,6 +1,14 @@
 defmodule Proj1.VampireNumber do
   use Agent, restart: :temporary
 
+  def start(list) do
+    bunch_size = 2000
+    bunch = Enum.chunk_every(list, bunch_size)
+    pids = Enum.map(bunch, fn x -> process_bunch(x) end)
+    Enum.each(pids, fn x -> Proj1.Worker.await(x) end)
+    System.stop(0)
+  end
+
   def process(list) do
     # Enum.each(list, &VampireNumber.check/1)
     Enum.each(list, fn n ->
@@ -10,7 +18,6 @@ defmodule Proj1.VampireNumber do
 
         vf ->
           printing(vf, n)
-          # vf -> IO.puts "#{n} \t#{Enum.each vf, fn post -> IO.inspect post end}"
       end
     end)
   end
@@ -42,6 +49,24 @@ defmodule Proj1.VampireNumber do
     pattern = :binary.compile_pattern(["{", "}", "[", "]", ",", "  "])
     output_replace_brackets = String.replace(output_to_string, pattern, "")
     output = String.replace(~s(#{output_replace_brackets}), ~s("), "")
-    IO.puts("#{n} \t#{output}")
+    IO.puts "#{n} \t#{output}"
+    output
   end
+
+  def process_bunch(list) do
+    {:ok, pid} = Proj1.Worker.start_link()
+    # children = [
+    #        %{
+    #                id: VampireNumber,
+    #                start: {VampireNumber, :start_link, []}
+    #        }
+    # ]
+    # {:ok, pid} = Supervisor.start_link(children, strategy: :one_for_one)
+    # Proj1.SuperVisor.count_children(pid)
+    GenServer.cast(pid, {:worker, list})
+    pid
+  end
+
+
+
 end
