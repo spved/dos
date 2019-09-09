@@ -11,8 +11,8 @@ defmodule Proj1.Worker do
   def await(pid), do: GenServer.call(pid, :get, @timeout)
 
   def handle_cast({:worker, list}, state) do
-    # {:ok, pid} = DynamicSupervisor.start_child(Proj1.VampireNumberSupervisor, Proj1.VampireNumber)
-    # ref = Process.monitor(pid)
+    # {:ok, pid} = DynamicSuper.start_child(Proj1.VampireNumberSupervisor, Proj1.VampireNumber)
+    # ref = Process.monitor:queue.new()
     # refs = Map.put(refs, ref, name)
     # names = Map.put(names, name, pid)
     ref = Proj1.VampireNumber.process(list)

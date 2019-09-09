@@ -24,10 +24,11 @@ defmodule Proj1 do
     # VampireNumber.start(100000, 200000)
     {number1, ""} = Integer.parse(arg1)
     {number2, ""} = Integer.parse(arg2)
-    {:ok, pid} = Proj1.Boss.start_link()
-    #{:ok, pid} = Proj1.SuperVisor.start_link([])
-    GenServer.cast(pid, {:boss, number1..number2})
-    Proj1.Boss.await(pid)
+    #{:ok, pid} = Proj1.Boss.start_link()
+    Proj1.SuperVisor.start_link([])
+    GenServer.cast(Proj1.Boss, {:boss, number1..number2})
+    :sys.get_state(Proj1.Boss)
+    #Proj1.Boss.await(Proj1.Boss)
   end
 
 end

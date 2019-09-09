@@ -1,12 +1,10 @@
 defmodule Proj1.VampireNumber do
-  use Agent, restart: :temporary
 
   def start(list) do
     bunch_size = 2000
     bunch = Enum.chunk_every(list, bunch_size)
     pids = Enum.map(bunch, fn x -> process_bunch(x) end)
     Enum.each(pids, fn x -> Proj1.Worker.await(x) end)
-    System.stop(0)
   end
 
   def process(list) do
@@ -22,14 +20,14 @@ defmodule Proj1.VampireNumber do
     end)
   end
 
-  def check(n) do
-    if rem(length(to_charlist(n)), 2) == 1 do
+  def check(num) do
+    if rem(length(to_charlist(num)), 2) == 1 do
       []
     else
-      half = div(length(to_charlist(n)), 2)
-      sorted = Enum.sort(String.codepoints("#{n}"))
+      half = div(length(to_charlist(num)), 2)
+      sorted = Enum.sort(String.codepoints("#{num}"))
 
-      Enum.filter(check_flangs(n), fn {a, b} ->
+      Enum.filter(check_flangs(num), fn {a, b} ->
         length(to_charlist(a)) == half && length(to_charlist(b)) == half &&
           Enum.count([a, b], fn x -> rem(x, 10) == 0 end) != 2 &&
           Enum.sort(String.codepoints("#{a}#{b}")) == sorted
@@ -55,14 +53,6 @@ defmodule Proj1.VampireNumber do
 
   def process_bunch(list) do
     {:ok, pid} = Proj1.Worker.start_link()
-    # children = [
-    #        %{
-    #                id: VampireNumber,
-    #                start: {VampireNumber, :start_link, []}
-    #        }
-    # ]
-    # {:ok, pid} = Supervisor.start_link(children, strategy: :one_for_one)
-    # Proj1.SuperVisor.count_children(pid)
     GenServer.cast(pid, {:worker, list})
     pid
   end

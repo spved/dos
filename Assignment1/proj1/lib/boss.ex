@@ -13,11 +13,11 @@ defmodule Proj1.Boss do
   def handle_cast({:boss, list}, state) do
     IO.puts("I am the Boss")
     ref = Proj1.VampireNumber.start(list)
-    {:reply, [ref| state]}
+    {:noreply, [ref| state]}
   end
 
-  def start_link() do
-    GenServer.start_link(__MODULE__, :queue.new())
+  def start_link(args) do
+    GenServer.start_link(__MODULE__, args, name: __MODULE__)
   end
 
   def init(queue) do
