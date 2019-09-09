@@ -19,14 +19,18 @@ defmodule Proj1 do
   def wait() do
     wait()
   end
+  def main() do
+    [arg1, arg2] = System.argv()
+    # VampireNumber.start(100000, 200000)
+    {number1, ""} = Integer.parse(arg1)
+    {number2, ""} = Integer.parse(arg2)
+    {:ok, pid} = Proj1.Boss.start_link()
+    #{:ok, pid} = Proj1.SuperVisor.start_link([])
+    GenServer.cast(pid, {:boss, number1..number2})
+    Proj1.Boss.await(pid)
+  end
 
 end
 
-[arg1, arg2] = System.argv()
-# VampireNumber.start(100000, 200000)
-{number1, ""} = Integer.parse(arg1)
-{number2, ""} = Integer.parse(arg2)
-{:ok, pid} = Proj1.Boss.start_link()
-#{:ok, pid} = Proj1.SuperVisor.start_link([])
-GenServer.cast(pid, {:boss, number1..number2})
-Proj1.Boss.await(pid)
+
+Proj1.main()
