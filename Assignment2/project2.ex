@@ -260,13 +260,14 @@ defmodule Project2 do
     IO.inspect state, label: "state"
     myS = s + incomingS
     myW = w + incomingW
-    list = [myS,myW,s,w, incomingS, incomingW]
     #str = "myS" <> IO.inspect(myS) <> "W" <> IO.inspect(myW)
-    IO.inspect list
+    
     difference = abs((myS/myW) - (s/w))
+    list = [myS,myW,s,w, incomingS, incomingW, difference]
+    IO.inspect list
     #IO.inspect adjList, label:  difference
     #IO.puts pscount
-    if(difference < :math.pow(10,-2) && pscount==1) do
+    if(difference < :math.pow(10,-2) && pscount==2) do
       count = :ets.update_counter(:table, "count", {2,1})
       #IO.puts pscount <> "Converged"
       if count == total_nodes do
@@ -275,7 +276,6 @@ defmodule Project2 do
         System.halt(1)
       end
     end
-    pcount = 0
     pscount = if(difference <= :math.pow(10,-2) && pscount<2) do
       #IO.inspect "came"
        pscount + 1 
@@ -289,19 +289,11 @@ defmodule Project2 do
     #IO.inspect pscount, label: difference
     adj_length = length(adjList)
     #IO.puts adj_length
-    if(adj_length > 0 ) do
-      #IO.puts "adj_l"
-      #IO.puts adj_length
+
       randomNode = Enum.random(adjList)
       sendPushSum(randomNode, myS/2, myW/2,startTime, total_nodes)
       {:noreply,state}
-    else 
-     #IO.puts "adj_length"
-       endTime = System.monotonic_time(:millisecond) - startTime
-        IO.puts "Convergence achieved in = #{endTime} Milliseconds"
-        System.halt(1)
-      #{:reply,{0,0,0,0}}
-    end
+    
   end
 
   def sendPushSum(randomNode, myS, myW,startTime, total_nodes) do
