@@ -1,3 +1,4 @@
+
 defmodule Project2 do
   use GenServer
   @moduledoc """
@@ -453,6 +454,38 @@ defmodule Project2 do
     GenServer.cast(chosenFirstNode, {:ReceivePushSum,0,0,startTime, 0.8*length(allNodes)})
   end
 
+
+  def sendPushSum(randomNode, myS, myW,startTime, total_nodes) do
+    GenServer.cast(randomNode, {:ReceivePushSum,myS,myW,startTime, total_nodes})
+  end
+
+  def updatePIDState(pid,nodeID) do
+    GenServer.call(pid, {:UpdatePIDState,nodeID})
+  end
+
+  def updateAdjacentListState(pid,map) do
+    GenServer.call(pid, {:UpdateAdjacentState,map})
+  end
+
+  def updateCountState(pid, startTime, total) do
+
+      GenServer.call(pid, {:UpdateCountState,startTime, total})
+
+  end
+
+  def getCountState(pid) do
+    GenServer.call(pid,{:GetCountState})
+  end
+
+  def receiveMessage(pid, startTime, total) do
+    updateCountState(pid, startTime, total)
+    recurseGossip(pid, startTime, total)
+  end
+
+  def getAdjacentList(pid) do
+    GenServer.call(pid,{:GetAdjacentList})
+  end
+
   def handle_cast({:ReceivePushSum,incomingS,incomingW,startTime, total_nodes},state) do
 
     {s,pscount,adjList,w} = state
@@ -489,34 +522,10 @@ defmodule Project2 do
 
   end
 
-  def sendPushSum(randomNode, myS, myW,startTime, total_nodes) do
-    GenServer.cast(randomNode, {:ReceivePushSum,myS,myW,startTime, total_nodes})
-  end
-
-  def updatePIDState(pid,nodeID) do
-    GenServer.call(pid, {:UpdatePIDState,nodeID})
-  end
-
   def handle_call({:UpdatePIDState,nodeID}, _from ,state) do
     {a,b,c,d} = state
     state={nodeID,b,c,d}
     {:reply,a, state}
-  end
-
-  def updateAdjacentListState(pid,map) do
-    GenServer.call(pid, {:UpdateAdjacentState,map})
-  end
-
-  def handle_call({:UpdateAdjacentState,map}, _from, state) do
-    {a,b,_,d}=state
-    state={a,b,map,d}
-    {:reply,a, state}
-  end
-
-  def updateCountState(pid, startTime, total) do
-
-      GenServer.call(pid, {:UpdateCountState,startTime, total})
-
   end
 
   def handle_call({:UpdateCountState,startTime, total}, _from,state) do
@@ -533,23 +542,15 @@ defmodule Project2 do
     {:reply, b+1, state}
   end
 
-
-  def getCountState(pid) do
-    GenServer.call(pid,{:GetCountState})
+  def handle_call({:UpdateAdjacentState,map}, _from, state) do
+    {a,b,_,d}=state
+    state={a,b,map,d}
+    {:reply,a, state}
   end
 
   def handle_call({:GetCountState}, _from ,state) do
     {_,b,_,_}=state
     {:reply,b, state}
-  end
-
-  def receiveMessage(pid, startTime, total) do
-    updateCountState(pid, startTime, total)
-    recurseGossip(pid, startTime, total)
-  end
-
-  def getAdjacentList(pid) do
-    GenServer.call(pid,{:GetAdjacentList})
   end
 
   def handle_call({:GetAdjacentList}, _from ,state) do
@@ -567,4 +568,3 @@ defmodule Project2 do
   end
 
 end
-Project2.main(System.argv())
