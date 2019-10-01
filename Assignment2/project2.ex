@@ -23,7 +23,7 @@ defmodule Project2 do
         topology=Enum.at(args, 1)
         algorithm=Enum.at(args, 2)
 
-        numNodes = if topology == "2D" || topology == "imp2D" do
+        numNodes = if topology == "2D" || topology == "honeycomb" || topology == "randhoneycomb" do
            getNextPerfectSq(numNodes)
          else
            numNodes
@@ -73,8 +73,9 @@ defmodule Project2 do
       "full" ->buildFull(allNodes)
       "2D" ->build2D(allNodes)
       "line" ->buildLine(allNodes)
-      "imp2D" ->buildImp2D(allNodes)
       "3Dtorus" -> build3DTorus(allNodes)
+      "honeycomb" ->buildHoneyComb(allNodes)
+      "randhoneycomb" ->buildHoneyCombRandom(allNodes)
     end
   end
 
@@ -249,6 +250,9 @@ defmodule Project2 do
     end
   end
 
+#####
+#End of 3D
+#####
   def buildLine(allNodes) do
 
     numNodes=Enum.count allNodes
@@ -271,44 +275,107 @@ defmodule Project2 do
     end)
   end
 
-  def buildImp2D (allNodes) do
-
+  def buildHoneyComb(allNodes) do
     numNodes=Enum.count allNodes
-    numNodesSQR = :math.sqrt numNodes
+    side= Kernel.trunc(:math.sqrt numNodes)
     Enum.each(allNodes, fn(k) ->
-      adjList=[]
+      count=Enum.find_index(allNodes, fn(x) -> x==k end)
+
+      index = if(!isNodeBottom(count,numNodes)) do
+        count + side
+      else
+        count - (side*side - side)
+      end
+      neighbhourBottom=Enum.fetch!(allNodes, index)
+
+      index = if(!isNodeTop(count,numNodes)) do
+        count - side
+      else
+        count + (side*side - side)
+      end
+      neighbhourTop=Enum.fetch!(allNodes, index)
+
+      x = rem(count, side)
+      y = div(count, side)
+
+      index = if (isEven(x) && isEven(y)) || (!isEven(x) && !isEven(y)) do
+        if (!isNodeLeft(count,numNodes)) do
+          count - 1
+        else
+          count + side - 1
+        end
+      else
+        if (!isNodeRight(count,numNodes)) do
+          count + 1
+        else
+          count - side + 1
+        end
+      end
+
+      neighbhourSide=Enum.fetch!(allNodes, index)
+      adjList = [neighbhourBottom, neighbhourTop, neighbhourSide]
+
+      updateAdjacentListState(k,adjList)
+
+    end)
+  end
+
+  def buildHoneyCombRandom(allNodes) do
+    numNodes=Enum.count allNodes
+    side= Kernel.trunc(:math.sqrt numNodes)
+    Enum.each(allNodes, fn(k) ->
       tempList=allNodes
       count=Enum.find_index(allNodes, fn(x) -> x==k end)
-      if(!isNodeBottom(count,numNodes)) do
-        index=count + round(numNodesSQR)
-        neighbhour1=Enum.fetch!(allNodes, index)
-        adjList = adjList ++ [neighbhour1]
-        tempList=List.delete_at(tempList, index)
-      end
 
-      if(!isNodeTop(count,numNodes)) do
-        index=count - round(numNodesSQR)
-        neighbhour2=Enum.fetch!(allNodes, index)
-        adjList = adjList ++ [neighbhour2]
-        tempList=List.delete_at(tempList, index)
+      index = if(!isNodeBottom(count,numNodes)) do
+        count + side
+      else
+        count - (side*side - side)
       end
+      neighbhourBottom=Enum.fetch!(allNodes, index)
+      tempList=List.delete_at(tempList,index)
 
-      if(!isNodeLeft(count,numNodes)) do
-        neighbhour3=Enum.fetch!(allNodes, count - 1)
-        adjList = adjList ++ [neighbhour3]
-        tempList=List.delete_at(tempList, count - 1)
+      index = if(!isNodeTop(count,numNodes)) do
+        count - side
+      else
+        count + (side*side - side)
       end
+      neighbhourTop=Enum.fetch!(allNodes, index)
+      tempList=List.delete_at(tempList,index)
 
-      if(!isNodeRight(count,numNodes)) do
-        neighbhour4=Enum.fetch!(allNodes, count + 1)
-        adjList = adjList ++ [neighbhour4]
-        tempList=List.delete_at(tempList, count + 1)
+      x = rem(count, side)
+      y = div(count, side)
+
+      index = if (isEven(x) && isEven(y)) || (!isEven(x) && !isEven(y)) do
+        if (!isNodeLeft(count,numNodes)) do
+          count - 1
+        else
+          count + side - 1
+        end
+      else
+        if (!isNodeRight(count,numNodes)) do
+          count + 1
+        else
+          count - side + 1
+        end
       end
+      neighbhourSide = Enum.fetch!(allNodes, index)
+      tempList = List.delete_at(tempList,index)
 
-      neighbhour5=Enum.random(tempList)
-      adjList = adjList ++ [neighbhour5]
+      neighbhourRandom = Enum.random(tempList)
+
+      adjList = [neighbhourBottom, neighbhourTop, neighbhourSide, neighbhourRandom]
       updateAdjacentListState(k,adjList)
+
     end)
+  end
+
+  def isEven (num) do
+    if rem(num,2)==0 do
+      true
+    else
+      false
+    end
   end
 
 ###
@@ -390,7 +457,7 @@ defmodule Project2 do
 
     {s,pscount,adjList,w} = state
     #IO.inspect w, label: s
-    IO.inspect state, label: "state"
+    #IO.inspect state, label: "state"
     myS = s + incomingS
     myW = w + incomingW
 
@@ -398,9 +465,8 @@ defmodule Project2 do
     #list = [myS,myW,s,w, incomingS, incomingW, difference]
     #IO.inspect list
     #IO.inspect adjList, label:  difference
-    if(difference < :math.pow(10,-2) && pscount==2) do
+    if(difference < :math.pow(10,-10) && pscount==2) do
       count = :ets.update_counter(:table, "count", {2,1})
-      IO.inspect count
       if count >= total_nodes do
         endTime = System.monotonic_time(:millisecond) - startTime
         IO.puts "Convergence achieved in = " <> Integer.to_string(endTime) <>" Milliseconds"
@@ -408,14 +474,14 @@ defmodule Project2 do
       end
 
     end
-    pscount = if(difference <= :math.pow(10,-2) && pscount<2) do
+    pscount = if(difference <= :math.pow(10,-10) && pscount<2) do
        pscount + 1
       else
         0
     end
 
     state = {myS/2,pscount,adjList,myW/2}
-    IO.inspect state, label: difference
+    #IO.inspect state, label: difference
 
     randomNode = Enum.random(adjList)
     sendPushSum(randomNode, myS/2, myW/2,startTime, total_nodes)
