@@ -1,3 +1,4 @@
+
 defmodule Project2 do
   use GenServer
   @moduledoc """
@@ -23,7 +24,7 @@ defmodule Project2 do
         topology=Enum.at(args, 1)
         algorithm=Enum.at(args, 2)
 
-        numNodes = if topology == "2D" || topology == "honeycomb" || topology == "randhoneycomb" do
+        numNodes = if topology == "rand2D" || topology == "honeycomb" || topology == "randhoneycomb" do
            getNextPerfectSq(numNodes)
          else
            numNodes
@@ -71,7 +72,7 @@ defmodule Project2 do
   def buildTopology(topology,allNodes) do
     case topology do
       "full" ->buildFull(allNodes)
-      "2D" ->build2D(allNodes)
+      "rand2D" ->buildRand2D(allNodes)
       "line" ->buildLine(allNodes)
       "3Dtorus" -> build3DTorus(allNodes)
       "honeycomb" ->buildHoneyComb(allNodes)
@@ -91,44 +92,35 @@ defmodule Project2 do
     round :math.pow(:math.ceil(:math.sqrt(numNodes)) ,2)
   end
 
-  def build2D(allNodes) do
+  def buildRand2D(allNodes) do
+    cDistance = 0.1
+    #IO.puts("Building 2D Topology")
     numNodes=Enum.count allNodes
-    numNodesSQR= :math.sqrt numNodes
-    Enum.each(allNodes, fn(k) ->
-      adjList=[]
+    side= Kernel.trunc(:math.sqrt numNodes)
+    distanceFactor = 1/side
+    coord = Enum.map(allNodes, fn(k) ->
       count=Enum.find_index(allNodes, fn(x) -> x==k end)
+      x = rem(count, side)
+      y = div(count, side)
+      [k,x,y]
+    end)
+    #IO.inspect coord
+    Enum.each(allNodes, fn(k) ->
+      count=Enum.find_index(allNodes, fn(x) -> x==k end)
+      x = rem(count, side)
+      y = div(count, side)
 
-      adjList = if(!isNodeBottom(count,numNodes)) do
-        index=count + round(numNodesSQR)
-        neighbhour1=Enum.fetch!(allNodes, index)
-        adjList ++ [neighbhour1]
-      else
-        adjList
-      end
-
-      adjList = if(!isNodeTop(count,numNodes)) do
-        index=count - round(numNodesSQR)
-        neighbhour2=Enum.fetch!(allNodes, index)
-        adjList ++ [neighbhour2]
-      else
-        adjList
-      end
-
-      adjList = if(!isNodeLeft(count,numNodes)) do
-        index=count - 1
-        neighbhour3=Enum.fetch!(allNodes,index )
-        adjList ++ [neighbhour3]
-      else
-        adjList
-       end
-
-      adjList = if(!isNodeRight(count,numNodes)) do
-        index=count + 1
-        neighbhour4=Enum.fetch!(allNodes, index)
-        adjList ++ [neighbhour4]
-      else
-        adjList
-      end
+      adjList = Enum.map(coord, fn(node) ->
+        [pid, x1, y1] = node
+        list = [x,y,x1,y1,distanceFactor]
+        distance = :math.pow((x-x1)*distanceFactor, 2) + :math.pow((y-y1)*distanceFactor, 2)
+        #IO.inspect list, label: distance
+        if distance < cDistance do
+          pid
+        end
+      end)
+      adjList = Enum.filter(adjList, & !is_nil(&1))
+      #IO.inspect(adjList)
       updateAdjacentListState(k,adjList)
     end)
   end
@@ -453,6 +445,38 @@ defmodule Project2 do
     GenServer.cast(chosenFirstNode, {:ReceivePushSum,0,0,startTime, 0.8*length(allNodes)})
   end
 
+
+  def sendPushSum(randomNode, myS, myW,startTime, total_nodes) do
+    GenServer.cast(randomNode, {:ReceivePushSum,myS,myW,startTime, total_nodes})
+  end
+
+  def updatePIDState(pid,nodeID) do
+    GenServer.call(pid, {:UpdatePIDState,nodeID})
+  end
+
+  def updateAdjacentListState(pid,map) do
+    GenServer.call(pid, {:UpdateAdjacentState,map})
+  end
+
+  def updateCountState(pid, startTime, total) do
+
+      GenServer.call(pid, {:UpdateCountState,startTime, total})
+
+  end
+
+  def getCountState(pid) do
+    GenServer.call(pid,{:GetCountState})
+  end
+
+  def receiveMessage(pid, startTime, total) do
+    updateCountState(pid, startTime, total)
+    recurseGossip(pid, startTime, total)
+  end
+
+  def getAdjacentList(pid) do
+    GenServer.call(pid,{:GetAdjacentList})
+  end
+
   def handle_cast({:ReceivePushSum,incomingS,incomingW,startTime, total_nodes},state) do
 
     {s,pscount,adjList,w} = state
@@ -489,34 +513,10 @@ defmodule Project2 do
 
   end
 
-  def sendPushSum(randomNode, myS, myW,startTime, total_nodes) do
-    GenServer.cast(randomNode, {:ReceivePushSum,myS,myW,startTime, total_nodes})
-  end
-
-  def updatePIDState(pid,nodeID) do
-    GenServer.call(pid, {:UpdatePIDState,nodeID})
-  end
-
   def handle_call({:UpdatePIDState,nodeID}, _from ,state) do
     {a,b,c,d} = state
     state={nodeID,b,c,d}
     {:reply,a, state}
-  end
-
-  def updateAdjacentListState(pid,map) do
-    GenServer.call(pid, {:UpdateAdjacentState,map})
-  end
-
-  def handle_call({:UpdateAdjacentState,map}, _from, state) do
-    {a,b,_,d}=state
-    state={a,b,map,d}
-    {:reply,a, state}
-  end
-
-  def updateCountState(pid, startTime, total) do
-
-      GenServer.call(pid, {:UpdateCountState,startTime, total})
-
   end
 
   def handle_call({:UpdateCountState,startTime, total}, _from,state) do
@@ -533,23 +533,15 @@ defmodule Project2 do
     {:reply, b+1, state}
   end
 
-
-  def getCountState(pid) do
-    GenServer.call(pid,{:GetCountState})
+  def handle_call({:UpdateAdjacentState,map}, _from, state) do
+    {a,b,_,d}=state
+    state={a,b,map,d}
+    {:reply,a, state}
   end
 
   def handle_call({:GetCountState}, _from ,state) do
     {_,b,_,_}=state
     {:reply,b, state}
-  end
-
-  def receiveMessage(pid, startTime, total) do
-    updateCountState(pid, startTime, total)
-    recurseGossip(pid, startTime, total)
-  end
-
-  def getAdjacentList(pid) do
-    GenServer.call(pid,{:GetAdjacentList})
   end
 
   def handle_call({:GetAdjacentList}, _from ,state) do
@@ -567,4 +559,5 @@ defmodule Project2 do
   end
 
 end
+
 Project2.main(System.argv())
