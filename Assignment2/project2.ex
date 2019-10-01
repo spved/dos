@@ -28,6 +28,13 @@ defmodule Project2 do
          else
            numNodes
         end
+
+        numNodes = if topology == "3Dtorus" do
+          getNextPerfectCube(numNodes)
+        else
+          numNodes
+        end
+
         allNodes = Enum.map((1..numNodes), fn(x) ->
           pid=start_node()
           updatePIDState(pid, x)
@@ -67,6 +74,7 @@ defmodule Project2 do
       "2D" ->build2D(allNodes)
       "line" ->buildLine(allNodes)
       "imp2D" ->buildImp2D(allNodes)
+      "3Dtorus" -> build3DTorus(allNodes)
     end
   end
 
@@ -122,6 +130,123 @@ defmodule Project2 do
       end
       updateAdjacentListState(k,adjList)
     end)
+  end
+
+  def getNextPerfectCube(numNodes) do
+    #round :math.pow(:math.ceil(:math.sqrt(numNodes)) ,2)
+    1000
+  end
+
+  def build3DTorus(allNodes) do
+    numNodes=Enum.count allNodes
+    side = 10
+    Enum.each(allNodes, fn(k) ->
+
+      count=Enum.find_index(allNodes, fn(x) -> x==k end)
+
+      index = if(!isNodeFrontPlane(count+1, side)) do
+        count - 1
+      else
+        count + side - 1
+      end
+      neighbhourFront=Enum.fetch!(allNodes, index)
+
+      index = if(!isNodeBackPlane(count+1, side)) do
+        count + 1
+      else
+        count - side + 1
+      end
+      neighbhourBack=Enum.fetch!(allNodes, index)
+
+      index = if(!isNodeLeftPlane(count+1, side)) do
+        count - side
+      else
+        count + Kernel.trunc(:math.pow(side,2)) - side
+      end
+      neighbhourLeft=Enum.fetch!(allNodes, index)
+
+      index = if(!isNodeRightPlane(count+1, side)) do
+        count + side
+      else
+        count - Kernel.trunc(:math.pow(side,2)) + side
+      end
+      neighbhourRight=Enum.fetch!(allNodes, index)
+
+      index = if(!isNodeBottomPlane(count+1, side)) do
+        count + Kernel.trunc(:math.pow(side,2))
+      else
+        count - Kernel.trunc(:math.pow(side,3)) + Kernel.trunc(:math.pow(side,2))
+      end
+      neighbhourBottom=Enum.fetch!(allNodes, index)
+
+      index = if(!isNodeTopPlane(count+1, side)) do
+        count - Kernel.trunc(:math.pow(side,2))
+      else
+        count + Kernel.trunc(:math.pow(side,3)) - Kernel.trunc(:math.pow(side,2))
+      end
+      neighbhourTop=Enum.fetch!(allNodes, index)
+
+      adjList=[neighbhourTop, neighbhourBottom, neighbhourLeft, neighbhourRight, neighbhourFront, neighbhourBack]
+      #adjList = []
+      #adjList = adjList ++ neighbhourTop
+      IO.inspect adjList
+      updateAdjacentListState(k,adjList)
+    end)
+  end
+
+#####
+#functions to get 3D
+#####
+
+  def isNodeTopPlane(index, side) do
+    if index < :math.pow(side, 2) do
+      true
+    else
+      false
+    end
+  end
+
+  def isNodeBottomPlane(index, side) do
+    size = :math.pow(side, 3) - :math.pow(side, 2)
+    if index > size do
+      true
+    else
+      false
+    end
+  end
+
+  def isNodeFrontPlane(index, side) do
+    if rem(index,side) == 1 do
+      true
+    else
+      false
+    end
+  end
+
+  def isNodeBackPlane(index, side) do
+    if rem(index,side) == 0 do
+      true
+    else
+      false
+    end
+  end
+
+  def isNodeLeftPlane(index, side) do
+    temp = rem(index, Kernel.trunc(:math.pow(side,2)))
+    if temp <= side && temp > 0 do
+      true
+    else
+      false
+    end
+  end
+
+  def isNodeRightPlane(index, side) do
+    temp = rem(index, Kernel.trunc(:math.pow(side,2)))
+    if temp > (side - 1) * side || temp == 0 do
+      true
+    else
+      false
+    end
   end
 
   def buildLine(allNodes) do
@@ -186,7 +311,9 @@ defmodule Project2 do
     end)
   end
 
-
+###
+# functions to get 2D grid
+###
   def isNodeBottom(i,length) do
     if(i>=(length-(:math.sqrt length))) do
       true
@@ -218,6 +345,10 @@ defmodule Project2 do
       false
     end
   end
+
+####
+# End of 2D grid
+####
 
   def startAlgorithm(algorithm,allNodes, startTime) do
     case algorithm do
@@ -252,7 +383,7 @@ defmodule Project2 do
     chosenFirstNode = Enum.random(allNodes)
     IO.inspect chosenFirstNode
     #{s,pscount,adjList,w} = state
-    GenServer.cast(chosenFirstNode, {:ReceivePushSum,0,0,startTime, length(allNodes)})
+    GenServer.cast(chosenFirstNode, {:ReceivePushSum,0,0,startTime, 0.8*length(allNodes)})
   end
 
   def handle_cast({:ReceivePushSum,incomingS,incomingW,startTime, total_nodes},state) do
@@ -269,12 +400,13 @@ defmodule Project2 do
     #IO.inspect adjList, label:  difference
     if(difference < :math.pow(10,-2) && pscount==2) do
       count = :ets.update_counter(:table, "count", {2,1})
-      if count == total_nodes do
+      IO.inspect count
+      if count >= total_nodes do
         endTime = System.monotonic_time(:millisecond) - startTime
         IO.puts "Convergence achieved in = " <> Integer.to_string(endTime) <>" Milliseconds"
         System.halt(1)
       end
-      
+
     end
     pscount = if(difference <= :math.pow(10,-2) && pscount<2) do
        pscount + 1
