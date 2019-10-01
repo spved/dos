@@ -128,8 +128,8 @@ defmodule Project2 do
           neighbhour1=Enum.fetch!(allNodes, count - 1)
           neighbhour2=List.first (allNodes)
           adjList=[neighbhour1,neighbhour2]
-          IO.inspect adjList
-          IO.inspect Enum.fetch!(allNodes, count)
+          #IO.inspect adjList
+          #IO.inspect Enum.fetch!(allNodes, count)
           updateAdjacentListState(k,adjList)
         true ->
           neighbhour1=Enum.fetch!(allNodes, count + 1)
@@ -248,53 +248,74 @@ defmodule Project2 do
 
   def startPushSum(allNodes, startTime) do
     chosenFirstNode = Enum.random(allNodes)
-    IO.inspect chosenFirstNode
-    #{s,pscount,adjList,w} = state
-    GenServer.cast(chosenFirstNode, {:ReceivePushSum,0,0,startTime, length(allNodes)})
+   
+    GenServer.cast(chosenFirstNode, {:ReceivePushSum,0,0,startTime, (0.8)*length(allNodes)})
   end
   
   def handle_cast({:ReceivePushSum,incomingS,incomingW,startTime, total_nodes},state) do
-
+ 
     {s,pscount,adjList,w} = state
-    #IO.inspect w, label: s
-    IO.inspect state, label: "state"
-    myS = s + incomingS
-    myW = w + incomingW
-    #str = "myS" <> IO.inspect(myS) <> "W" <> IO.inspect(myW)
-    
-    difference = abs((myS/myW) - (s/w))
-    list = [myS,myW,s,w, incomingS, incomingW, difference]
-    IO.inspect list
-    #IO.inspect adjList, label:  difference
-    #IO.puts pscount
-    if(difference < :math.pow(10,-2) && pscount==2) do
-      count = :ets.update_counter(:table, "count", {2,1})
-      #IO.puts pscount <> "Converged"
-      if count == total_nodes do
+   #IO.inspect adjList, label: "adjList before"
+    adjListAlive = Enum.filter(adjList, fn x -> Process.alive?(x) end)
+    #IO.inspect adjList, label: "adjList after"
+  
+    if adjListAlive == [] do
+            count = :ets.update_counter(:table, "count", {2,1})
+      
+      if count >= total_nodes do
+        IO.inspect count, label: "count"
         endTime = System.monotonic_time(:millisecond) - startTime
         IO.puts "Convergence achieved in = " <> Integer.to_string(endTime) <>" Milliseconds"
         System.halt(1)
       end
+      Process.exit(self(), :normal)
+         
     end
-    pscount = if(difference <= :math.pow(10,-2) && pscount<2) do
-      #IO.inspect "came"
+    
+    myS = s + incomingS
+    myW = w + incomingW
+    
+    
+    difference = abs((myS/myW) - (s/w))
+    #list = [myS,myW,s,w, incomingS, incomingW, difference]
+    
+    if(difference < :math.pow(10,-10) && pscount==2) do
+      count = :ets.update_counter(:table, "count", {2,1})
+      
+      
+      if count >= total_nodes do
+      IO.inspect count, label: "count"
+        endTime = System.monotonic_time(:millisecond) - startTime
+        IO.puts "Convergence achieved in = " <> Integer.to_string(endTime) <>" Milliseconds"
+        System.halt(1)
+      end
+    
+      Process.exit(self(), :normal)
+    end
+    pscount = if(difference <= :math.pow(10,-10) && pscount<2) do
+    
        pscount + 1 
       else
         0
     end
    
-    #total_count = pscount+pcount
+   
     state = {myS/2,pscount,adjList,myW/2}
-    IO.inspect state, label: difference
-    #IO.inspect pscount, label: difference
-    adj_length = length(adjList)
-    #IO.puts adj_length
+   
 
-      randomNode = Enum.random(adjList)
-      sendPushSum(randomNode, myS/2, myW/2,startTime, total_nodes)
-      {:noreply,state}
+    randomNode = Enum.random(adjListAlive)
+    sendPushSum(randomNode, myS/2, myW/2,startTime, total_nodes)
+    {:noreply,state}
+     :timer.sleep(100)
+    sendPushSum(self(), myS/2, myW/2,startTime, total_nodes)
+    {:noreply,state}
+        
+end
+
     
-  end
+    
+
+
 
   def sendPushSum(randomNode, myS, myW,startTime, total_nodes) do
     GenServer.cast(randomNode, {:ReceivePushSum,myS,myW,startTime, total_nodes})
