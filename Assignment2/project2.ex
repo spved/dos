@@ -57,18 +57,6 @@ defmodule Project2 do
     infiniteLoop()
   end
 
-  def checkEtsTable(numNodes, startTime,table, parent) do
-
-    [{_, currentCount}] = :ets.lookup(table, "count")
-
-    if currentCount == (0.9*numNodes) do
-      currentTime = System.system_time(:millisecond)
-      endTime = currentTime - startTime
-      IO.puts "Convergence Achieved in = "<> Integer.to_string(endTime)
-      Process.exit(parent, :kill)
-    end
-    checkEtsTable(numNodes,startTime, table, parent)
-  end
   def buildTopology(topology,allNodes) do
     case topology do
       "full" ->buildFull(allNodes)
@@ -112,7 +100,6 @@ defmodule Project2 do
 
       adjList = Enum.map(coord, fn(node) ->
         [pid, x1, y1] = node
-        list = [x,y,x1,y1,distanceFactor]
         distance = :math.pow((x-x1)*distanceFactor, 2) + :math.pow((y-y1)*distanceFactor, 2)
         #IO.inspect list, label: distance
         if distance < cDistance do
